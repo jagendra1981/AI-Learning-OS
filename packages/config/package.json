@@ -1,0 +1,19 @@
+{
+  "name": "@ai-learning-os/config",
+  "private": true,
+  "version": "0.0.0",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "dependencies": {
+    "zod": "3.23.8"
+  },
+  "devDependencies": {
+    "@types/node": "22.9.0"
+  },
+  "scripts": {
+    "build": "tsc --noEmit false",
+    "lint": "eslint src --ext .ts --no-error-on-unmatched-pattern",
+    "typecheck": "tsc --noEmit"
+  }
+}
+

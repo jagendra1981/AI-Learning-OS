@@ -1,0 +1,41 @@
+{
+  "name": "ai-learning-os",
+  "private": true,
+  "engines": {
+    "node": ">=22.14.0 <23"
+  },
+  "packageManager": "pnpm@9.15.5",
+  "scripts": {
+    "build": "turbo run build",
+    "dev": "turbo run dev --parallel",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "lint": "turbo run lint",
+    "test": "vitest run",
+    "typecheck": "turbo run typecheck",
+    "db:generate": "prisma generate --schema database/prisma/schema.prisma",
+    "db:validate": "prisma validate --schema database/prisma/schema.prisma",
+    "db:migrate:dev": "prisma migrate dev --schema database/prisma/schema.prisma",
+    "db:migrate:deploy": "prisma migrate deploy --schema database/prisma/schema.prisma",
+    "db:migrate:status": "prisma migrate status --schema database/prisma/schema.prisma",
+    "db:test:reset": "node scripts/db/reset-test-db.mjs",
+    "security:secrets": "node scripts/security/secret-scan.mjs",
+    "eval:golden": "vitest run tests/ai-evals/c038-slice2-tutor-harness.test.ts",
+    "test:e2e:c039:slice1": "playwright test tests/e2e/c039-slice1-golden.spec.ts"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.62.1",
+    "@prisma/client": "6.19.0",
+    "@typescript-eslint/eslint-plugin": "8.18.0",
+    "@typescript-eslint/parser": "8.18.0",
+    "eslint": "8.57.1",
+    "eslint-config-next": "14.2.35",
+    "eslint-config-prettier": "9.1.0",
+    "prettier": "3.9.6",
+    "prisma": "6.19.0",
+    "turbo": "2.10.9",
+    "typescript": "5.9.3",
+    "vitest": "2.1.9"
+  }
+}
+
