@@ -85,4 +85,3 @@ function ConfigurationReviewContent() {
 export default function ConfigurationReviewPage() {
   return <ProtectedGate ready><ConfigurationReviewContent /></ProtectedGate>;
 }
-

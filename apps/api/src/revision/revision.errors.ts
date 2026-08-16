@@ -1,0 +1,8 @@
+export class RevisionError extends Error {
+  constructor(
+    public readonly code: string,
+    message = code,
+  ) {
+    super(message);
+  }
+}

@@ -14,6 +14,7 @@ const rawEnvironmentSchema = z.object({
   WEB_ORIGIN: z.string().url().default('http://localhost:3000'),
   NEXT_PUBLIC_APP_ENV: z.enum(environmentValues).optional(),
   DATABASE_URL: z.string().min(1).optional(),
+  DIRECT_URL: z.string().min(1).optional(),
   TEST_DATABASE_URL: z.string().min(1).optional(),
   AUTH_ISSUER: z.string().url().optional(),
   AUTH_AUDIENCE: z.string().min(1).optional(),
@@ -21,6 +22,10 @@ const rawEnvironmentSchema = z.object({
   AI_PROVIDER: z.string().min(1).optional(),
   AI_MODEL: z.string().min(1).optional(),
   AI_API_KEY: z.string().min(1).optional(),
+  REDIS_REST_URL: z.string().url().optional(),
+  REDIS_REST_TOKEN: z.string().min(1).optional(),
+  R2_ACCOUNT_ID: z.string().min(1).optional(),
+  R2_PUBLIC_BASE_URL: z.string().url().optional(),
   STORAGE_ENDPOINT: z.string().url().optional(),
   STORAGE_BUCKET: z.string().min(1).optional(),
   STORAGE_ACCESS_KEY: z.string().min(1).optional(),
@@ -35,10 +40,13 @@ export type RawEnvironment = z.input<typeof rawEnvironmentSchema>;
 
 export type ServerConfig = {
   app: { environment: Environment; apiPort: number; webOrigin: string };
-  database: { url?: string; testUrl?: string };
+  database: { url?: string; directUrl?: string; testUrl?: string };
   auth: { issuer?: string; audience?: string; clientSecret?: string };
   ai: { provider?: string; model?: string; apiKey?: string };
+  cache: { redisRestUrl?: string; redisRestToken?: string };
   storage: {
+    accountId?: string;
+    publicBaseUrl?: string;
     endpoint?: string;
     bucket?: string;
     accessKey?: string;
@@ -102,7 +110,11 @@ export function loadServerConfig(
       apiPort: env.API_PORT,
       webOrigin: env.WEB_ORIGIN,
     },
-    database: { url: env.DATABASE_URL, testUrl: env.TEST_DATABASE_URL },
+    database: {
+      url: env.DATABASE_URL,
+      directUrl: env.DIRECT_URL,
+      testUrl: env.TEST_DATABASE_URL,
+    },
     auth: {
       issuer: env.AUTH_ISSUER,
       audience: env.AUTH_AUDIENCE,
@@ -113,7 +125,13 @@ export function loadServerConfig(
       model: env.AI_MODEL,
       apiKey: env.AI_API_KEY,
     },
+    cache: {
+      redisRestUrl: env.REDIS_REST_URL,
+      redisRestToken: env.REDIS_REST_TOKEN,
+    },
     storage: {
+      accountId: env.R2_ACCOUNT_ID,
+      publicBaseUrl: env.R2_PUBLIC_BASE_URL,
       endpoint: env.STORAGE_ENDPOINT,
       bucket: env.STORAGE_BUCKET,
       accessKey: env.STORAGE_ACCESS_KEY,
@@ -137,6 +155,7 @@ export function loadPublicConfig(
 
 const secretPaths = new Set([
   'database.url',
+  'database.directUrl',
   'database.testUrl',
   'auth.clientSecret',
   'ai.apiKey',
@@ -164,4 +183,3 @@ export function redactServerConfig(
   (Object.keys(config) as Array<keyof ServerConfig>).forEach(visit);
   return diagnostics;
 }
-

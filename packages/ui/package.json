@@ -1,0 +1,9 @@
+{
+  "name": "@ai-learning-os/ui",
+  "private": true,
+  "version": "0.0.0",
+  "scripts": {
+    "lint": "eslint src --ext .ts,.tsx --no-error-on-unmatched-pattern",
+    "typecheck": "tsc --noEmit"
+  }
+}

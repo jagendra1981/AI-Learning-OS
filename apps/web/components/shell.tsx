@@ -20,61 +20,63 @@ export function Shell({ children }: { children: React.ReactNode }) {
         </Link>
         <button
           className="menu"
+          type="button"
           aria-expanded={open}
           aria-controls="nav"
+          aria-label={open ? 'Close navigation menu' : 'Open navigation menu'}
           onClick={() => setOpen(!open)}
         >
-          Menu
+          {open ? 'Close' : 'Menu'}
         </button>
         <nav
           id="nav"
           className={open ? 'nav open' : 'nav'}
           aria-label="Primary"
         >
-          <Link className="nav-primary"
+          <Link onClick={() => setOpen(false)} className="nav-primary"
             aria-current={path === '/dashboard' ? 'page' : undefined}
             href="/dashboard"
           >
             Dashboard
           </Link>
-          <Link className="nav-primary"
+          <Link onClick={() => setOpen(false)} className="nav-primary"
             aria-current={path === '/today' ? 'page' : undefined}
             href="/today"
           >
             Today
           </Link>
-          <Link className="nav-primary"
+          <Link onClick={() => setOpen(false)} className="nav-primary"
             aria-current={path === '/progress' ? 'page' : undefined}
             href="/progress"
           >
             Progress
           </Link>
-          <Link className="nav-primary"
+          <Link onClick={() => setOpen(false)} className="nav-primary"
             aria-current={path === '/mistakes' ? 'page' : undefined}
             href="/mistakes"
           >
             Mistakes
           </Link>
-          <Link className="nav-primary"
+          <Link onClick={() => setOpen(false)} className="nav-primary"
             aria-current={path === '/revision' ? 'page' : undefined}
             href="/revision"
           >
             Revision
           </Link>
-          <Link className="nav-primary"
+          <Link onClick={() => setOpen(false)} className="nav-primary"
             aria-current={path === '/tutor' ? 'page' : undefined}
             href="/tutor"
           >
             Tutor
           </Link>
-          <Link className="nav-primary"
+          <Link onClick={() => setOpen(false)} className="nav-primary"
             aria-current={path === '/profile' ? 'page' : undefined}
             href="/profile"
           >
             Profile
           </Link>
           {hasReviewerAdminAccess(user) && (
-            <Link
+            <Link onClick={() => setOpen(false)}
               aria-current={path === '/review' ? 'page' : undefined}
               href="/review"
             >
@@ -97,4 +99,3 @@ export function Shell({ children }: { children: React.ReactNode }) {
     </>
   );
 }
-
