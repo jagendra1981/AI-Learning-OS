@@ -87,4 +87,3 @@ function QuestionReviewContent() {
 export default function QuestionReviewPage() {
   return <ProtectedGate ready><QuestionReviewContent /></ProtectedGate>;
 }
-

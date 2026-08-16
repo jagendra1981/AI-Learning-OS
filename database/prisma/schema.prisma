@@ -1,0 +1,1695 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+enum UserStatus {
+  PENDING
+  ACTIVE
+  LOCKED
+  SUSPENDED
+  DELETED
+  ANONYMIZED
+}
+
+enum AuthProvider {
+  LOCAL
+  MANAGED
+}
+
+enum ConsentState {
+  GRANTED
+  WITHDRAWN
+  REVOKED
+}
+
+enum UserRoleName {
+  STUDENT
+  CONTENT_REVIEWER
+  ACADEMIC_ADMIN
+  PLATFORM_ADMIN
+}
+
+enum RoleAssignmentStatus {
+  ACTIVE
+  REVOKED
+  EXPIRED
+}
+
+enum AcademicScopeStatus {
+  ACTIVE
+  REVOKED
+}
+
+enum OnboardingState {
+  NOT_STARTED
+  PROFILE_IN_PROGRESS
+  CONSENT_REQUIRED
+  READY_FOR_DIAGNOSTIC
+}
+
+enum ConfigurationVersionStatus {
+  DRAFT
+  APPROVED
+  PUBLISHED
+  SUPERSEDED
+  ROLLED_BACK
+}
+
+enum ConfigurationApprovalDecision {
+  APPROVED
+  REJECTED
+}
+
+enum QuestionType {
+  MULTIPLE_CHOICE
+  TRUE_FALSE
+  NUMERIC
+  SUBJECTIVE
+}
+
+enum QuestionVersionStatus {
+  DRAFT
+  IN_REVIEW
+  APPROVED
+  PUBLISHED
+  RETIRED
+  REJECTED
+}
+
+enum AcademicIssueStatus {
+  OPEN
+  RESOLVED
+}
+
+enum PilotStatus {
+  DRAFT
+  READY
+  ACTIVE
+  COMPLETED
+}
+
+enum QuestionMappingRole {
+  PRIMARY
+  SECONDARY
+}
+
+enum QuestionOriginType {
+  AUTHOR_CREATED
+  LICENSED_SOURCE
+  APPROVED_FIXTURE
+}
+
+enum QuestionRightsStatus {
+  VERIFIED
+  PENDING
+  RESTRICTED
+  REJECTED
+}
+
+enum QuestionReviewType {
+  CONTENT
+  CONCEPT_MAPPING
+  DIFFICULTY
+  PROVENANCE
+  RIGHTS
+}
+
+enum QuestionReviewDecision {
+  APPROVE
+  REJECT
+  REQUEST_CHANGES
+}
+
+enum AssessmentTemplateStatus {
+  DRAFT
+  PUBLISHED
+  RETIRED
+}
+
+enum AssessmentSessionState {
+  READY
+  ACTIVE
+  COMPLETED
+  EXPIRED
+  CANCELLED
+}
+
+enum DiagnosticStatus {
+  ACTIVE
+  COMPLETED
+  STOPPED
+}
+
+enum DiagnosticStopReason {
+  SUFFICIENT_TARGET_EVIDENCE
+  GAP_LOCALIZED
+  MAX_QUESTIONS_REACHED
+  NO_ELIGIBLE_CANDIDATE
+  USER_STOPPED
+  SESSION_EXPIRED
+}
+
+enum PracticeGoalType {
+  CONCEPT_PRACTICE
+  OBJECTIVE_PRACTICE
+  REMEDIAL_PRACTICE
+  MIXED_REVIEW
+}
+
+enum PracticeStatus {
+  READY
+  ACTIVE
+  COMPLETED
+  STOPPED
+}
+
+enum PracticeStopReason {
+  USER_COMPLETED
+  USER_STOPPED
+  MAX_QUESTIONS_REACHED
+  NO_ELIGIBLE_CANDIDATE
+}
+
+enum TestType {
+  TOPIC
+  CHAPTER
+  CUSTOM
+}
+
+enum TestLifecycleState {
+  READY
+  ACTIVE
+  COMPLETED
+  EXPIRED
+}
+
+enum AttachmentPurpose {
+  DOUBT_IMAGE
+  TUTOR_IMAGE
+}
+
+enum AttachmentStatus {
+  PENDING_UPLOAD
+  VALIDATING
+  AVAILABLE
+  REJECTED
+  DELETED
+  EXPIRED
+}
+
+model User {
+  userId                     String                     @id @default(uuid()) @db.Uuid
+  authProvider               AuthProvider
+  providerSubject            String
+  email                      String?
+  status                     UserStatus                 @default(PENDING)
+  createdAt                  DateTime                   @default(now())
+  updatedAt                  DateTime                   @updatedAt
+  passwordHash               String?
+  profile                    StudentProfile?
+  consents                   ConsentRecord[]
+  roles                      UserRole[]                 @relation("UserRoles")
+  grantedRoles               UserRole[]                 @relation("RoleGrantors")
+  sessions                   Session[]
+  resetTokens                PasswordResetToken[]
+  auditEvents                AuditEvent[]
+  examGoals                  ExamGoal[]
+  configurationVersions      ConfigurationVersion[]     @relation("ConfigurationVersionCreators")
+  configurationChanges       ConfigurationChange[]      @relation("ConfigurationChangeActors")
+  configurationApprovals     ConfigurationApproval[]
+  configurationPublications  ConfigurationPublication[]
+  configurationRollbacks     ConfigurationRollback[]
+  questionsCreated           Question[]                 @relation("QuestionCreators")
+  questionVersionsCreated    QuestionVersion[]          @relation("QuestionVersionCreators")
+  questionConceptMapsCreated QuestionConceptMap[]       @relation("QuestionConceptMapCreators")
+  questionReviews            QuestionReviewRecord[]
+  questionExposures          QuestionExposure[]
+  assessmentTemplatesCreated AssessmentTemplate[]       @relation("AssessmentTemplateCreators")
+  assessmentSessions         AssessmentSession[]
+  assessmentResponses        AssessmentResponse[]
+  diagnosticRuns             DiagnosticRun[]
+  practiceSessions           PracticeSession[]
+  tests                      TestDefinition[]
+  academicScopes             AcademicScope[]
+  attachments                Attachment[]
+  ownedPilots                Pilot[]                  @relation("PilotOwners")
+  pilotParticipations        PilotParticipant[]       @relation("PilotParticipants")
+
+  @@unique([authProvider, providerSubject])
+  @@index([providerSubject])
+  @@index([status])
+  @@map("users")
+}
+
+model Attachment {
+  attachmentId     String            @id @default(uuid()) @db.Uuid
+  ownerLearnerId   String            @db.Uuid
+  createdByActorId String            @db.Uuid
+  purpose          AttachmentPurpose
+  objectKey        String            @unique
+  originalFilename String
+  declaredMimeType String
+  idempotencyKey   String
+  requestFingerprint String
+  sessionId         String?
+  interactionId     String?
+  detectedMimeType String?
+  sizeBytes        Int?
+  sha256           String?
+  width            Int?
+  height           Int?
+  status           AttachmentStatus  @default(PENDING_UPLOAD)
+  createdAt        DateTime          @default(now())
+  validatedAt      DateTime?
+  deletedAt        DateTime?
+  owner            User              @relation(fields: [ownerLearnerId], references: [userId], onDelete: Restrict)
+  @@index([ownerLearnerId, status])
+  @@index([ownerLearnerId, purpose, createdAt])
+  @@index([ownerLearnerId, sessionId, interactionId, status])
+  @@unique([ownerLearnerId, idempotencyKey])
+  @@map("attachments")
+}
+
+model AcademicScope {
+  academicScopeId   String             @id @default(uuid()) @db.Uuid
+  learnerId         String             @db.Uuid
+  contextId         String
+  academicVersionId String
+  status            AcademicScopeStatus @default(ACTIVE)
+  createdAt         DateTime            @default(now())
+  revokedAt         DateTime?
+  learner           User                @relation(fields: [learnerId], references: [userId], onDelete: Restrict)
+  @@unique([learnerId, contextId, academicVersionId])
+  @@index([contextId, academicVersionId, status])
+  @@map("academic_scopes")
+}
+
+model PracticeSession {
+  practiceSessionId        String              @id @default(uuid()) @db.Uuid
+  ownerUserId              String              @db.Uuid
+  academicVersionId        String
+  assessmentSessionId      String?             @db.Uuid
+  goalType                 PracticeGoalType
+  targetIds                String[]
+  status                   PracticeStatus      @default(READY)
+  currentDifficulty        String              @default("MEDIUM")
+  consecutiveCorrect       Int                 @default(0)
+  questionCount            Int                 @default(0)
+  currentPlacementId       String?             @db.Uuid
+  currentQuestionVersionId String?             @db.Uuid
+  currentAttempt           Int                 @default(0)
+  retryCount               Int                 @default(0)
+  retryAvailable           Boolean             @default(false)
+  hintUsed                 Boolean             @default(false)
+  processedResponseIds     String[]
+  stopReason               PracticeStopReason?
+  lockVersion              Int                 @default(0)
+  createdAt                DateTime            @default(now())
+  updatedAt                DateTime            @updatedAt
+  startedAt                DateTime?
+  completedAt              DateTime?
+  owner                    User                @relation(fields: [ownerUserId], references: [userId], onDelete: Restrict)
+  academicVersion          SyllabusVersion     @relation(fields: [academicVersionId], references: [canonicalId], onDelete: Restrict)
+
+  @@index([ownerUserId, status, createdAt])
+  @@map("practice_sessions")
+}
+
+model AssessmentTemplate {
+  assessmentTemplateId   String                   @id @default(uuid()) @db.Uuid
+  canonicalId            String
+  versionNumber          Int
+  title                  String
+  assessmentType         String
+  syllabusVersionId      String
+  examId                 String
+  subjectId              String
+  durationSeconds        Int
+  structure              Json
+  configurationReference String?
+  status                 AssessmentTemplateStatus @default(DRAFT)
+  createdByUserId        String                   @db.Uuid
+  createdAt              DateTime                 @default(now())
+  updatedAt              DateTime                 @updatedAt
+  createdBy              User                     @relation("AssessmentTemplateCreators", fields: [createdByUserId], references: [userId], onDelete: Restrict)
+  syllabusVersion        SyllabusVersion          @relation(fields: [syllabusVersionId], references: [canonicalId], onDelete: Restrict)
+  sessions               AssessmentSession[]
+
+  @@unique([canonicalId, versionNumber])
+  @@index([examId, subjectId, status])
+  @@map("assessment_templates")
+}
+
+model AssessmentSession {
+  assessmentSessionId  String                       @id @default(uuid()) @db.Uuid
+  ownerUserId          String                       @db.Uuid
+  assessmentTemplateId String                       @db.Uuid
+  syllabusVersionId    String
+  state                AssessmentSessionState       @default(READY)
+  createdAt            DateTime                     @default(now())
+  startedAt            DateTime?
+  expiresAt            DateTime?
+  endedAt              DateTime?
+  lockVersion          Int                          @default(0)
+  owner                User                         @relation(fields: [ownerUserId], references: [userId], onDelete: Restrict)
+  template             AssessmentTemplate           @relation(fields: [assessmentTemplateId], references: [assessmentTemplateId], onDelete: Restrict)
+  syllabusVersion      SyllabusVersion              @relation(fields: [syllabusVersionId], references: [canonicalId], onDelete: Restrict)
+  placements           AssessmentSessionPlacement[]
+  responses            AssessmentResponse[]
+  test                 TestDefinition?
+
+  @@index([ownerUserId, state, createdAt])
+  @@index([expiresAt, state])
+  @@map("assessment_sessions")
+}
+
+model TestDefinition {
+  testId                 String             @id @default(uuid()) @db.Uuid
+  ownerUserId            String             @db.Uuid
+  assessmentSessionId    String             @unique @db.Uuid
+  academicVersionId      String
+  testType               TestType
+  targetScope            Json
+  requestedQuestionCount Int
+  durationSeconds        Int
+  selectionContext       Json
+  state                  TestLifecycleState @default(READY)
+  createdAt              DateTime           @default(now())
+  startedAt              DateTime?
+  expiresAt              DateTime?
+  completedAt            DateTime?
+  owner                  User               @relation(fields: [ownerUserId], references: [userId], onDelete: Restrict)
+  academicVersion        SyllabusVersion    @relation(fields: [academicVersionId], references: [canonicalId], onDelete: Restrict)
+  assessmentSession      AssessmentSession  @relation(fields: [assessmentSessionId], references: [assessmentSessionId], onDelete: Restrict)
+
+  @@index([ownerUserId, state, createdAt])
+  @@map("test_definitions")
+}
+
+model AssessmentSessionPlacement {
+  assessmentSessionPlacementId String                       @id @default(uuid()) @db.Uuid
+  assessmentSessionId          String                       @db.Uuid
+  questionVersionId            String                       @db.Uuid
+  section                      String?
+  ordinal                      Int
+  attemptNumber                Int                          @default(1)
+  retryOfPlacementId           String?                      @db.Uuid
+  placementMetadata            Json?
+  selectionReference           String?
+  createdAt                    DateTime                     @default(now())
+  session                      AssessmentSession            @relation(fields: [assessmentSessionId], references: [assessmentSessionId], onDelete: Cascade)
+  questionVersion              QuestionVersion              @relation(fields: [questionVersionId], references: [questionVersionId], onDelete: Restrict)
+  responses                    AssessmentResponse[]
+  retryOf                      AssessmentSessionPlacement?  @relation("PlacementRetry", fields: [retryOfPlacementId], references: [assessmentSessionPlacementId], onDelete: Restrict)
+  retries                      AssessmentSessionPlacement[] @relation("PlacementRetry")
+
+  @@unique([assessmentSessionId, ordinal, attemptNumber])
+  @@index([assessmentSessionId, section, ordinal])
+  @@map("assessment_session_placements")
+}
+
+model AssessmentResponse {
+  assessmentResponseId String                     @id @default(uuid()) @db.Uuid
+  userId               String                     @db.Uuid
+  assessmentSessionId  String                     @db.Uuid
+  placementId          String                     @db.Uuid
+  questionVersionId    String                     @db.Uuid
+  responsePayload      Json
+  correctness          String
+  score                Int
+  idempotencyKey       String
+  requestFingerprint   String
+  submittedAt          DateTime                   @default(now())
+  createdAt            DateTime                   @default(now())
+  updatedAt            DateTime                   @updatedAt
+  user                 User                       @relation(fields: [userId], references: [userId], onDelete: Restrict)
+  session              AssessmentSession          @relation(fields: [assessmentSessionId], references: [assessmentSessionId], onDelete: Cascade)
+  placement            AssessmentSessionPlacement @relation(fields: [placementId], references: [assessmentSessionPlacementId], onDelete: Restrict)
+  questionVersion      QuestionVersion            @relation(fields: [questionVersionId], references: [questionVersionId], onDelete: Restrict)
+
+  @@unique([userId, idempotencyKey])
+  @@unique([assessmentSessionId, placementId])
+  @@index([assessmentSessionId, placementId])
+  @@map("assessment_responses")
+}
+
+model DiagnosticRun {
+  diagnosticRunId          String                @id @default(uuid()) @db.Uuid
+  userId                   String                @db.Uuid
+  academicVersionId        String
+  rootTargetConceptId      String
+  currentTargetConceptId   String
+  currentDifficulty        String
+  sessionId                String?               @db.Uuid
+  status                   DiagnosticStatus      @default(ACTIVE)
+  questionCount            Int                   @default(0)
+  processedResponseIds     String[]
+  conceptEvidence          Json
+  path                     Json
+  currentPlacementId       String?               @db.Uuid
+  currentQuestionVersionId String?               @db.Uuid
+  stopReason               DiagnosticStopReason?
+  policyVersion            String                @default("C016-DEP-GC-V1")
+  lockVersion              Int                   @default(0)
+  createdAt                DateTime              @default(now())
+  updatedAt                DateTime              @updatedAt
+  completedAt              DateTime?
+  user                     User                  @relation(fields: [userId], references: [userId], onDelete: Restrict)
+  academicVersion          SyllabusVersion       @relation(fields: [academicVersionId], references: [canonicalId], onDelete: Restrict)
+
+  @@unique([userId, academicVersionId, rootTargetConceptId, status])
+  @@index([userId, status])
+  @@map("diagnostic_runs")
+}
+
+model ConfigurationSet {
+  configurationSetId String                 @id @default(uuid()) @db.Uuid
+  scopeKey           String
+  examId             String
+  subjectId          String
+  createdAt          DateTime               @default(now())
+  updatedAt          DateTime               @updatedAt
+  versions           ConfigurationVersion[]
+
+  @@unique([examId, subjectId])
+  @@unique([scopeKey])
+  @@map("configuration_sets")
+}
+
+model AcademicIssue {
+  issueId       String             @id @default(uuid()) @db.Uuid
+  sourceType    String
+  sourceRef     String
+  examId        String?
+  subjectId     String?
+  summary       String
+  status        AcademicIssueStatus @default(OPEN)
+  createdAt     DateTime           @default(now())
+  updatedAt     DateTime           @updatedAt
+  pilotId       String?            @db.Uuid
+  pilot         Pilot?             @relation(fields: [pilotId], references: [id], onDelete: Restrict)
+
+  @@index([status, createdAt])
+  @@index([pilotId, status, createdAt])
+  @@map("academic_issues")
+}
+
+model Pilot {
+  id          String     @id @default(uuid()) @db.Uuid
+  name        String
+  status      PilotStatus @default(DRAFT)
+  startsAt    DateTime
+  endsAt      DateTime?
+  ownerUserId String     @db.Uuid
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+  owner       User       @relation("PilotOwners", fields: [ownerUserId], references: [userId], onDelete: Restrict)
+  participants PilotParticipant[]
+  academicIssues AcademicIssue[]
+
+  @@index([status, startsAt])
+  @@index([ownerUserId])
+  @@map("pilots")
+}
+
+model PilotParticipant {
+  pilotId   String   @db.Uuid
+  userId    String   @db.Uuid
+  createdAt DateTime @default(now())
+  pilot     Pilot    @relation(fields: [pilotId], references: [id], onDelete: Restrict)
+  user      User     @relation("PilotParticipants", fields: [userId], references: [userId], onDelete: Restrict)
+
+  @@id([pilotId, userId])
+  @@index([userId])
+  @@map("pilot_participants")
+}
+
+model ConfigurationVersion {
+  configurationVersionId String                     @id @default(uuid()) @db.Uuid
+  configurationSetId     String                     @db.Uuid
+  versionNumber          Int
+  status                 ConfigurationVersionStatus @default(DRAFT)
+  createdByUserId        String                     @db.Uuid
+  reason                 String
+  createdAt              DateTime                   @default(now())
+  updatedAt              DateTime                   @updatedAt
+  configurationSet       ConfigurationSet           @relation(fields: [configurationSetId], references: [configurationSetId], onDelete: Restrict)
+  createdBy              User                       @relation("ConfigurationVersionCreators", fields: [createdByUserId], references: [userId], onDelete: Restrict)
+  changes                ConfigurationChange[]
+  approvals              ConfigurationApproval[]
+  publications           ConfigurationPublication[]
+  rollbacksFrom          ConfigurationRollback[]    @relation("RollbackSource")
+  rollbacksTo            ConfigurationRollback[]    @relation("RollbackTarget")
+
+  @@unique([configurationSetId, versionNumber])
+  @@index([configurationSetId, status])
+  @@map("configuration_versions")
+}
+
+model ConfigurationChange {
+  configurationChangeId  String               @id @default(uuid()) @db.Uuid
+  configurationVersionId String               @db.Uuid
+  changeKey              String
+  beforeValue            Json?
+  afterValue             Json
+  actorUserId            String               @db.Uuid
+  reason                 String
+  createdAt              DateTime             @default(now())
+  version                ConfigurationVersion @relation(fields: [configurationVersionId], references: [configurationVersionId], onDelete: Restrict)
+  actor                  User                 @relation("ConfigurationChangeActors", fields: [actorUserId], references: [userId], onDelete: Restrict)
+
+  @@unique([configurationVersionId, changeKey])
+  @@map("configuration_changes")
+}
+
+model ConfigurationApproval {
+  configurationApprovalId String                        @id @default(uuid()) @db.Uuid
+  configurationVersionId  String                        @db.Uuid
+  actorUserId             String                        @db.Uuid
+  decision                ConfigurationApprovalDecision
+  reason                  String
+  correlationId           String
+  createdAt               DateTime                      @default(now())
+  version                 ConfigurationVersion          @relation(fields: [configurationVersionId], references: [configurationVersionId], onDelete: Restrict)
+  actor                   User                          @relation(fields: [actorUserId], references: [userId], onDelete: Restrict)
+
+  @@unique([configurationVersionId, actorUserId])
+  @@index([correlationId])
+  @@map("configuration_approvals")
+}
+
+model ConfigurationPublication {
+  configurationPublicationId String               @id @default(uuid()) @db.Uuid
+  configurationVersionId     String               @db.Uuid
+  actorUserId                String               @db.Uuid
+  previousVersionId          String?              @db.Uuid
+  reason                     String
+  correlationId              String
+  createdAt                  DateTime             @default(now())
+  version                    ConfigurationVersion @relation(fields: [configurationVersionId], references: [configurationVersionId], onDelete: Restrict)
+  actor                      User                 @relation(fields: [actorUserId], references: [userId], onDelete: Restrict)
+
+  @@unique([configurationVersionId])
+  @@index([correlationId])
+  @@map("configuration_publications")
+}
+
+model ConfigurationRollback {
+  configurationRollbackId String               @id @default(uuid()) @db.Uuid
+  sourceVersionId         String               @db.Uuid
+  targetVersionId         String               @db.Uuid
+  actorUserId             String               @db.Uuid
+  reason                  String
+  correlationId           String
+  createdAt               DateTime             @default(now())
+  sourceVersion           ConfigurationVersion @relation("RollbackSource", fields: [sourceVersionId], references: [configurationVersionId], onDelete: Restrict)
+  targetVersion           ConfigurationVersion @relation("RollbackTarget", fields: [targetVersionId], references: [configurationVersionId], onDelete: Restrict)
+  actor                   User                 @relation(fields: [actorUserId], references: [userId], onDelete: Restrict)
+
+  @@unique([sourceVersionId, targetVersionId, correlationId])
+  @@index([targetVersionId])
+  @@map("configuration_rollbacks")
+}
+
+model Question {
+  questionId      String            @id @default(uuid()) @db.Uuid
+  scopeKey        String
+  examId          String
+  subjectId       String
+  createdByUserId String            @db.Uuid
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+  exam            AcademicExam      @relation(fields: [examId], references: [canonicalId], onDelete: Restrict)
+  subject         AcademicSubject   @relation(fields: [subjectId], references: [canonicalId], onDelete: Restrict)
+  createdBy       User              @relation("QuestionCreators", fields: [createdByUserId], references: [userId], onDelete: Restrict)
+  versions        QuestionVersion[]
+
+  @@unique([scopeKey, questionId])
+  @@index([examId, subjectId])
+  @@map("questions")
+}
+
+model QuestionVersion {
+  questionVersionId    String                       @id @default(uuid()) @db.Uuid
+  questionId           String                       @db.Uuid
+  versionNumber        Int
+  status               QuestionVersionStatus        @default(DRAFT)
+  questionType         QuestionType
+  stem                 Json
+  options              Json?
+  correctAnswerRef     String?
+  explanationRef       String?
+  syllabusNodeId       String
+  learningObjectiveId  String?
+  locale               String                       @default("en-IN")
+  createdByUserId      String                       @db.Uuid
+  createdAt            DateTime                     @default(now())
+  updatedAt            DateTime                     @updatedAt
+  question             Question                     @relation(fields: [questionId], references: [questionId], onDelete: Restrict)
+  syllabusNode         SyllabusNode                 @relation(fields: [syllabusNodeId], references: [canonicalId], onDelete: Restrict)
+  learningObjective    LearningObjective?           @relation(fields: [learningObjectiveId], references: [canonicalId], onDelete: Restrict)
+  createdBy            User                         @relation("QuestionVersionCreators", fields: [createdByUserId], references: [userId], onDelete: Restrict)
+  concepts             QuestionConceptMap[]
+  difficulty           QuestionDifficulty?
+  hints                QuestionHint[]
+  solutions            QuestionSolution[]
+  provenance           QuestionProvenance?
+  rights               QuestionRights?
+  reviews              QuestionReviewRecord[]
+  exposures            QuestionExposure[]
+  assessmentPlacements AssessmentSessionPlacement[]
+  assessmentResponses  AssessmentResponse[]
+
+  @@unique([questionId, versionNumber])
+  @@index([questionId, status])
+  @@index([syllabusNodeId])
+  @@map("question_versions")
+}
+
+model QuestionExposure {
+  questionExposureId  String          @id @default(uuid()) @db.Uuid
+  userId              String          @db.Uuid
+  questionVersionId   String          @db.Uuid
+  syllabusVersionId   String
+  selectedAt          DateTime        @default(now())
+  sessionId           String?
+  selectionReasonCode String
+  user                User            @relation(fields: [userId], references: [userId], onDelete: Cascade)
+  questionVersion     QuestionVersion @relation(fields: [questionVersionId], references: [questionVersionId], onDelete: Restrict)
+  syllabusVersion     SyllabusVersion @relation(fields: [syllabusVersionId], references: [canonicalId], onDelete: Restrict)
+
+  @@index([userId, syllabusVersionId, selectedAt])
+  @@index([questionVersionId])
+  @@map("question_exposures")
+}
+
+model QuestionConceptMap {
+  questionConceptMapId String              @id @default(uuid()) @db.Uuid
+  questionVersionId    String              @db.Uuid
+  conceptId            String
+  mappingRole          QuestionMappingRole
+  approved             Boolean             @default(false)
+  createdByUserId      String              @db.Uuid
+  createdAt            DateTime            @default(now())
+  questionVersion      QuestionVersion     @relation(fields: [questionVersionId], references: [questionVersionId], onDelete: Restrict)
+  concept              AcademicConcept     @relation(fields: [conceptId], references: [canonicalId], onDelete: Restrict)
+  createdBy            User                @relation("QuestionConceptMapCreators", fields: [createdByUserId], references: [userId], onDelete: Restrict)
+
+  @@unique([questionVersionId, conceptId])
+  @@index([conceptId, approved])
+  @@map("question_concept_maps")
+}
+
+model QuestionDifficulty {
+  questionDifficultyId String          @id @default(uuid()) @db.Uuid
+  questionVersionId    String          @unique @db.Uuid
+  authorDifficulty     Int?
+  empiricalDifficulty  Float?
+  calibratedDifficulty Float?
+  confidence           Float?
+  provenance           String?
+  createdAt            DateTime        @default(now())
+  updatedAt            DateTime        @updatedAt
+  questionVersion      QuestionVersion @relation(fields: [questionVersionId], references: [questionVersionId], onDelete: Restrict)
+
+  @@map("question_difficulty")
+}
+
+model QuestionHint {
+  questionHintId    String          @id @default(uuid()) @db.Uuid
+  questionVersionId String          @db.Uuid
+  sequence          Int
+  content           Json
+  isFinalHint       Boolean         @default(false)
+  createdAt         DateTime        @default(now())
+  questionVersion   QuestionVersion @relation(fields: [questionVersionId], references: [questionVersionId], onDelete: Restrict)
+
+  @@unique([questionVersionId, sequence])
+  @@map("question_hints")
+}
+
+model QuestionSolution {
+  questionSolutionId String          @id @default(uuid()) @db.Uuid
+  questionVersionId  String          @db.Uuid
+  solutionKey        String
+  content            Json
+  createdAt          DateTime        @default(now())
+  questionVersion    QuestionVersion @relation(fields: [questionVersionId], references: [questionVersionId], onDelete: Restrict)
+
+  @@unique([questionVersionId, solutionKey])
+  @@map("question_solutions")
+}
+
+model QuestionProvenance {
+  questionProvenanceId String             @id @default(uuid()) @db.Uuid
+  questionVersionId    String             @unique @db.Uuid
+  authorOrSource       String
+  originType           QuestionOriginType
+  sourceReference      String?
+  creationMethod       String
+  attribution          String?
+  reviewNotes          String?
+  verificationStatus   String
+  createdAt            DateTime           @default(now())
+  updatedAt            DateTime           @updatedAt
+  questionVersion      QuestionVersion    @relation(fields: [questionVersionId], references: [questionVersionId], onDelete: Restrict)
+
+  @@map("question_provenance")
+}
+
+model QuestionRights {
+  questionRightsId     String               @id @default(uuid()) @db.Uuid
+  questionVersionId    String               @unique @db.Uuid
+  license              String
+  rightsStatus         QuestionRightsStatus
+  commercialUseAllowed Boolean
+  restrictionNotes     String?
+  createdAt            DateTime             @default(now())
+  updatedAt            DateTime             @updatedAt
+  questionVersion      QuestionVersion      @relation(fields: [questionVersionId], references: [questionVersionId], onDelete: Restrict)
+
+  @@map("question_rights")
+}
+
+model QuestionReviewRecord {
+  questionReviewRecordId String                 @id @default(uuid()) @db.Uuid
+  questionVersionId      String                 @db.Uuid
+  reviewerUserId         String                 @db.Uuid
+  reviewType             QuestionReviewType
+  decision               QuestionReviewDecision
+  reviewScope            String
+  reason                 String
+  correlationId          String
+  beforeReference        Json?
+  afterReference         Json?
+  createdAt              DateTime               @default(now())
+  questionVersion        QuestionVersion        @relation(fields: [questionVersionId], references: [questionVersionId], onDelete: Restrict)
+  reviewer               User                   @relation(fields: [reviewerUserId], references: [userId], onDelete: Restrict)
+
+  @@unique([questionVersionId, reviewerUserId, reviewType, correlationId])
+  @@index([questionVersionId, createdAt])
+  @@map("question_review_records")
+}
+
+model PasswordResetToken {
+  resetTokenId String    @id @default(uuid()) @db.Uuid
+  userId       String    @db.Uuid
+  tokenHash    String    @unique
+  expiresAt    DateTime
+  usedAt       DateTime?
+  createdAt    DateTime  @default(now())
+  user         User      @relation(fields: [userId], references: [userId], onDelete: Cascade)
+
+  @@index([userId, expiresAt, usedAt])
+  @@map("password_reset_tokens")
+}
+
+model StudentProfile {
+  studentId           String          @id @default(uuid()) @db.Uuid
+  userId              String          @unique @db.Uuid
+  targetExamId        String?
+  targetYear          Int?
+  availabilityProfile Json?
+  onboardingState     OnboardingState @default(NOT_STARTED)
+  createdAt           DateTime        @default(now())
+  updatedAt           DateTime        @updatedAt
+  user                User            @relation(fields: [userId], references: [userId], onDelete: Cascade)
+
+  @@index([targetExamId])
+  @@map("student_profiles")
+}
+
+model ExamGoal {
+  examGoalId String   @id @default(uuid()) @db.Uuid
+  userId     String   @db.Uuid
+  examId     String
+  targetYear Int
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  user       User     @relation(fields: [userId], references: [userId], onDelete: Cascade)
+
+  @@unique([userId, examId])
+  @@index([userId])
+  @@map("exam_goals")
+}
+
+model AuditEvent {
+  auditEventId  String   @id @default(uuid()) @db.Uuid
+  actorUserId   String   @db.Uuid
+  subjectUserId String   @db.Uuid
+  action        String
+  resourceType  String
+  resourceId    String?
+  metadata      Json?
+  occurredAt    DateTime @default(now())
+  actor         User     @relation(fields: [actorUserId], references: [userId], onDelete: Restrict)
+
+  @@index([subjectUserId, occurredAt])
+  @@index([actorUserId, occurredAt])
+  @@map("audit_events")
+}
+
+model LearningEvent {
+  eventId             String   @id @default(uuid()) @db.Uuid
+  eventType           String
+  schemaVersion       Int      @default(1)
+  occurredAt          DateTime
+  recordedAt          DateTime @default(now())
+  learnerUserId       String   @db.Uuid
+  actorUserId         String   @db.Uuid
+  sourceComponent     String
+  sourceAggregateType String
+  sourceAggregateId   String
+  correlationId       String
+  causationId         String?  @db.Uuid
+  idempotencyKey      String
+  academicContext     Json?
+  payload             Json
+
+  @@unique([idempotencyKey])
+  @@index([learnerUserId, recordedAt])
+  @@index([correlationId])
+  @@index([eventType])
+  @@index([sourceAggregateType, sourceAggregateId])
+  @@index([causationId])
+  @@map("learning_events")
+}
+
+model EvidenceRecord {
+  evidenceId            String   @id @default(uuid()) @db.Uuid
+  learnerId             String   @db.Uuid
+  evidenceType          String
+  sourceLearningEventId String?
+  tutorObservationId    String?
+  sourceAggregateType   String
+  sourceAggregateId     String
+  questionVersionId     String?
+  conceptId             String?
+  topicId               String?
+  objectiveId           String?
+  attemptOrdinal        Int?
+  value                 Json
+  processingVersion     String
+  correlationId         String?
+  causationId           String?
+  academicContext       Json
+  sourceOccurredAt      DateTime
+  createdAt             DateTime @default(now())
+  idempotencyKey        String   @unique
+
+  @@index([learnerId, createdAt])
+  @@index([sourceLearningEventId])
+  @@index([evidenceType, learnerId])
+  @@map("evidence_records")
+}
+
+model EvidenceSignal {
+  signalId          String   @id @default(uuid()) @db.Uuid
+  learnerId         String   @db.Uuid
+  signalType        String
+  value             Json
+  sourceEvidenceIds Json
+  processingVersion String
+  ruleId            String
+  targetVersionId   String?
+  correlationId     String?
+  academicContext   Json
+  createdAt         DateTime @default(now())
+  idempotencyKey    String   @unique
+
+  @@index([learnerId, createdAt])
+  @@index([signalType, learnerId])
+  @@map("evidence_signals")
+}
+
+model DigitalTwinState {
+  stateId                 String    @id @default(uuid()) @db.Uuid
+  learnerId               String    @db.Uuid
+  targetType              String
+  targetId                String
+  academicContextIdentity String
+  academicContext         Json
+  mastery                 Decimal   @db.Decimal(12, 6)
+  confidence              Decimal   @db.Decimal(12, 6)
+  evidenceCount           Int
+  revision                Int
+  watermark               String?
+  lastEvidenceAt          DateTime?
+  algorithmId             String
+  configId                String
+  processingVersion       String
+  currentSnapshotId       String?   @db.Uuid
+  createdAt               DateTime  @default(now())
+  updatedAt               DateTime  @updatedAt
+
+  @@unique([learnerId, targetType, targetId, academicContextIdentity, algorithmId, configId])
+  @@index([learnerId, targetType, targetId])
+  @@map("digital_twin_states")
+}
+
+model DigitalTwinSnapshot {
+  snapshotId              String    @id @default(uuid()) @db.Uuid
+  projectionId            String    @unique
+  learnerId               String    @db.Uuid
+  targetType              String
+  targetId                String
+  academicContextIdentity String
+  academicContext         Json
+  mastery                 Decimal   @db.Decimal(12, 6)
+  confidence              Decimal   @db.Decimal(12, 6)
+  evidenceCount           Int
+  revision                Int
+  previousSnapshotId      String?   @db.Uuid
+  appliedInputIds         Json
+  watermark               String?
+  lastEvidenceAt          DateTime?
+  algorithmId             String
+  configId                String
+  processingVersion       String
+  provenance              Json
+  projectedAt             DateTime  @default(now())
+
+  @@index([learnerId, targetType, targetId, academicContextIdentity, projectedAt])
+  @@map("digital_twin_snapshots")
+}
+
+model MistakeDnaPattern {
+  patternId                String                          @id @default(uuid()) @db.Uuid
+  learnerId                String                          @db.Uuid
+  targetType               String
+  conceptId                String
+  taxonomyCode             String
+  patternSignature         String
+  academicContextIdentity  String
+  academicContext          Json
+  state                    String
+  lifetimeOccurrenceCount  Int
+  recurrenceCount          Int
+  remediationSuccessStreak Int
+  reappearanceCount        Int
+  severity                 Decimal                         @db.Decimal(12, 6)
+  confidence               Decimal                         @db.Decimal(12, 6)
+  firstSeenAt              DateTime
+  lastSeenAt               DateTime
+  confirmedAt              DateTime?
+  remediatingAt            DateTime?
+  resolvedAt               DateTime?
+  reappearedAt             DateTime?
+  resolutionReason         String?
+  revision                 Int
+  watermark                String?
+  engineId                 String
+  configId                 String
+  processingVersion        String
+  currentTransitionId      String?                         @db.Uuid
+  activeGenerationId       String?                         @db.Uuid
+  activeGeneration         MistakeDnaProjectionGeneration? @relation("ActiveMistakeDnaGeneration", fields: [activeGenerationId], references: [generationId], onDelete: Restrict)
+  createdAt                DateTime                        @default(now())
+
+  updatedAt DateTime @updatedAt
+
+  @@unique([learnerId, targetType, conceptId, taxonomyCode, academicContextIdentity, engineId, configId])
+  @@index([learnerId, conceptId, state])
+  @@map("mistake_dna_patterns")
+}
+
+model MistakeDnaProjectionGeneration {
+  generationId            String                 @id @default(uuid()) @db.Uuid
+  logicalGenerationKey    String                 @unique
+  learnerId               String                 @db.Uuid
+  conceptId               String
+  patternSignature        String
+  academicContextIdentity String
+  engineId                String
+  configId                String
+  processingVersion       String
+  watermark               String?
+  inputIds                Json
+  fingerprint             String
+  createdAt               DateTime               @default(now())
+  transitions             MistakeDnaTransition[]
+  activePatterns          MistakeDnaPattern[]    @relation("ActiveMistakeDnaGeneration")
+
+  @@index([learnerId, conceptId, academicContextIdentity, patternSignature])
+  @@map("mistake_dna_projection_generations")
+}
+
+model MistakeDnaTransition {
+  transitionId             String                          @id @default(uuid()) @db.Uuid
+  projectionId             String                          @unique
+  patternId                String                          @db.Uuid
+  learnerId                String                          @db.Uuid
+  targetType               String
+  conceptId                String
+  patternSignature         String
+  academicContextIdentity  String
+  fromState                String?
+  toState                  String
+  occurrenceInputIds       Json
+  remediationInputIds      Json
+  severity                 Decimal                         @db.Decimal(12, 6)
+  confidence               Decimal                         @db.Decimal(12, 6)
+  lifetimeOccurrenceCount  Int
+  recurrenceCount          Int
+  remediationSuccessStreak Int
+  reappearanceCount        Int
+  previousTransitionId     String?                         @db.Uuid
+  watermark                String?
+  reasonCode               String
+  provenance               Json
+  engineId                 String
+  configId                 String
+  processingVersion        String
+  generationId             String?                         @db.Uuid
+  semanticOrder            Int?
+  generation               MistakeDnaProjectionGeneration? @relation(fields: [generationId], references: [generationId], onDelete: Restrict)
+  createdAt                DateTime                        @default(now())
+
+  @@unique([generationId, semanticOrder])
+  @@index([learnerId, conceptId, patternSignature, createdAt])
+  @@map("mistake_dna_transitions")
+}
+
+model RevisionState {
+  revisionStateId                    String   @id @default(uuid()) @db.Uuid
+  scopeKey                           String   @unique
+  learnerId                         String   @db.Uuid
+  conceptId                         String
+  contextId                         String
+  academicVersionId                 String
+  state                             String
+  intervalDays                      Int?
+  anchorAt                          DateTime?
+  dueAt                             DateTime?
+  consecutiveIndependentSuccessCount Int     @default(0)
+  lastQualifyingQuestionVersionId   String?  @db.Uuid
+  successWindowStartedAt            DateTime?
+  lastAssessmentResultId            String?
+  lastAssessedAt                    DateTime?
+  mastery                           Decimal? @db.Decimal(12, 6)
+  learnerConfidence                 Decimal? @db.Decimal(12, 6)
+  c021SnapshotId                    String?  @db.Uuid
+  c021Revision                      Int?
+  c022ProjectionId                  String?  @db.Uuid
+  c022GenerationId                  String?  @db.Uuid
+  c022Revision                      Int?
+  c022Lifecycle                     String?
+  c022ResolutionReason              String?
+  c022Severity                      Decimal? @db.Decimal(12, 6)
+  c022RecurrenceCount               Int?
+  c022ReappearanceCount             Int?
+  watermarkEffectiveAt              DateTime?
+  watermarkSourceRank               Int?
+  watermarkSourceId                 String?
+  engineId                          String
+  algorithmId                       String
+  configId                          String
+  processingVersion                 String
+  activeGenerationId                String?  @db.Uuid
+  revision                          Int      @default(0)
+  createdAt                         DateTime @default(now())
+  updatedAt                         DateTime @updatedAt
+
+  @@unique([learnerId, conceptId, contextId, academicVersionId])
+  @@index([learnerId, conceptId])
+  @@map("revision_states")
+}
+
+model RevisionGeneration {
+  generationId      String   @id @default(uuid()) @db.Uuid
+  logicalKey        String   @unique
+  scopeKey          String
+  learnerId         String   @db.Uuid
+  fingerprint       String
+  sourceIds         Json
+  createdAt         DateTime @default(now())
+
+  @@index([scopeKey, createdAt])
+  @@map("revision_generations")
+}
+
+model RevisionSourceLedger {
+  sourceLedgerId    String   @id @default(uuid()) @db.Uuid
+  scopeKey          String
+  learnerId         String   @db.Uuid
+  sourceType        String
+  sourceRank        Int
+  immutableSourceId String
+  payloadHash       String
+  effectiveAt       DateTime
+  normalizedPayload Json
+  createdAt         DateTime @default(now())
+
+  @@unique([scopeKey, immutableSourceId])
+  @@index([scopeKey, effectiveAt, sourceRank, immutableSourceId])
+  @@map("revision_source_ledger")
+}
+
+model RevisionHistory {
+  revisionHistoryId String   @id @default(uuid()) @db.Uuid
+  projectionId      String   @unique
+  generationId      String   @db.Uuid
+  semanticOrder     Int
+  scopeKey          String
+  learnerId         String   @db.Uuid
+  fromState         String
+  toState           String
+  beforeIntervalDays Int?
+  afterIntervalDays Int?
+  beforeDueAt       DateTime?
+  afterDueAt        DateTime?
+  transitionReason  String
+  sourceType        String
+  sourceRank        Int
+  immutableSourceId String
+  effectiveAt       DateTime
+  engineId          String
+  algorithmId       String
+  configId          String
+  processingVersion String
+  provenance        Json
+  createdAt         DateTime @default(now())
+
+  @@unique([generationId, semanticOrder])
+  @@index([scopeKey, generationId, semanticOrder])
+  @@map("revision_history")
+}
+
+model RevisionAssessmentLink {
+  revisionAssessmentLinkId String   @id @default(uuid()) @db.Uuid
+  attemptKey               String   @unique
+  scopeKey                 String
+  learnerId                String   @db.Uuid
+  assessmentResultId       String
+  questionVersionId        String   @db.Uuid
+  assessedAt               DateTime
+  outcome                  String
+  immutableSourceId        String
+  payloadHash              String
+  createdAt                DateTime @default(now())
+
+  @@index([scopeKey, assessedAt])
+  @@map("revision_assessment_links")
+}
+
+model AdaptiveRun {
+  adaptiveRunId       String   @id @default(uuid()) @db.Uuid
+  scopeKey            String   @unique
+  learnerId           String   @db.Uuid
+  contextId           String
+  academicVersionId   String
+  status              String
+  selectedCandidateId String?
+  watermarkEffectiveAt DateTime?
+  watermarkSourceRank Int?
+  watermarkSourceId   String?
+  activeGenerationId  String?  @db.Uuid
+  engineId            String
+  algorithmId         String
+  configId            String
+  processingVersion   String
+  contractVersion     String
+  revision            Int      @default(0)
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  @@unique([learnerId, contextId, academicVersionId])
+  @@index([learnerId, contextId])
+  @@map("adaptive_runs")
+}
+
+model AdaptiveGeneration {
+  generationId   String   @id @default(uuid()) @db.Uuid
+  logicalKey     String   @unique
+  scopeKey       String
+  learnerId      String   @db.Uuid
+  fingerprint    String
+  sourceIds      Json
+  createdAt      DateTime @default(now())
+
+  @@index([scopeKey, createdAt])
+  @@map("adaptive_generations")
+}
+
+model AdaptiveCandidate {
+  adaptiveCandidateId String   @id @default(uuid()) @db.Uuid
+  generationId        String   @db.Uuid
+  immutableCandidateId String
+  scopeKey             String
+  learnerId            String  @db.Uuid
+  candidateType        String
+  conceptId            String
+  targetRefId          String
+  eligible             Boolean
+  exclusionReason      String?
+  revisionUrgency      Decimal @db.Decimal(12, 6)
+  mistakeUrgency       Decimal @db.Decimal(12, 6)
+  masteryGap           Decimal @db.Decimal(12, 6)
+  confidenceGap        Decimal @db.Decimal(12, 6)
+  difficultyFit        Decimal @db.Decimal(12, 6)
+  noveltyNeed          Decimal @db.Decimal(12, 6)
+  finalScore           Decimal @db.Decimal(12, 6)
+  rank                 Int?
+  reasonCodes          Json
+  createdAt            DateTime @default(now())
+
+  @@unique([generationId, immutableCandidateId])
+  @@index([scopeKey, generationId, rank])
+  @@map("adaptive_candidates")
+}
+
+model AdaptiveExplanation {
+  adaptiveExplanationId String   @id @default(uuid()) @db.Uuid
+  generationId          String   @unique @db.Uuid
+  scopeKey              String
+  learnerId             String   @db.Uuid
+  selectedCandidateId   String?
+  reasonCodes           Json
+  explanation           String
+  engineId              String
+  configId              String
+  processingVersion     String
+  createdAt             DateTime @default(now())
+  @@map("adaptive_explanations")
+}
+
+model AdaptiveHistory {
+  adaptiveHistoryId String   @id @default(uuid()) @db.Uuid
+  projectionId      String   @unique
+  generationId      String   @db.Uuid
+  scopeKey          String
+  learnerId         String   @db.Uuid
+  selectedCandidateId String?
+  reasonCodes       Json
+  explanation       String
+  watermarkEffectiveAt DateTime
+  watermarkSourceRank Int
+  watermarkSourceId String
+  engineId          String
+  algorithmId       String
+  configId          String
+  processingVersion String
+  contractVersion   String
+  provenance        Json
+  createdAt         DateTime @default(now())
+
+  @@unique([generationId, scopeKey])
+  @@index([scopeKey, createdAt])
+  @@map("adaptive_history")
+}
+
+model AdaptiveSourceLedger {
+  adaptiveSourceLedgerId String   @id @default(uuid()) @db.Uuid
+  scopeKey          String
+  learnerId         String   @db.Uuid
+  immutableSourceId String
+  payloadHash       String
+  effectiveAt       DateTime
+  sourceRank        Int
+  normalizedPayload Json
+  createdAt         DateTime @default(now())
+
+  @@unique([scopeKey, immutableSourceId])
+  @@index([scopeKey, effectiveAt, sourceRank, immutableSourceId])
+  @@map("adaptive_source_ledger")
+}
+
+model TodayPlanLineage {
+  lineageId String @id @default(uuid()) @db.Uuid
+  learnerId String @db.Uuid
+  contextId String
+  academicVersionId String
+  planDateLocal String
+  learnerTimezone String
+  currentVersion Int?
+  revision Int @default(0)
+  watermark Json?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  versions TodayPlanVersion[]
+  events TodayPlanEventLedger[]
+  history TodayPlanHistory[]
+  @@unique([learnerId, contextId, academicVersionId, planDateLocal, learnerTimezone])
+  @@map("today_plan_lineages")
+}
+
+model TodayPlanVersion {
+  planVersionId String @id @default(uuid()) @db.Uuid
+  lineageId String @db.Uuid
+  planVersion Int
+  semanticVersion Int
+  rebuildGeneration String @default("initial")
+  planDateLocal String
+  learnerTimezone String
+  state String
+  reason String?
+  sourceGenerationId String?
+  c024Binding Json
+  capacityMinutes Int @default(120)
+  createdAt DateTime @default(now())
+  lineage TodayPlanLineage @relation(fields: [lineageId], references: [lineageId])
+  items TodayPlanItem[]
+  provenance TodayPlanProvenance[]
+  @@unique([lineageId, planVersion])
+  @@map("today_plan_versions")
+}
+
+model TodayPlanItem {
+  planItemId String @id @default(uuid()) @db.Uuid
+  planVersionId String @db.Uuid
+  semanticItemKey String
+  sequence Int
+  candidateBinding Json
+  targetRefId String
+  durationMinutes Int
+  mandatory Boolean
+  availabilitySnapshot Json
+  state String
+  itemVersion Int @default(1)
+  completionProvenance Json?
+  postponementProvenance Json?
+  createdAt DateTime @default(now())
+  plan TodayPlanVersion @relation(fields: [planVersionId], references: [planVersionId])
+  @@unique([planVersionId, sequence])
+  @@unique([planVersionId, semanticItemKey])
+  @@map("today_plan_items")
+}
+
+model TodayPlanEventLedger {
+  eventLedgerId String @id @default(uuid()) @db.Uuid
+  lineageId String @db.Uuid
+  immutableEventId String
+  payloadHash String
+  effectiveAt DateTime
+  operationRank Int
+  actorId String @db.Uuid
+  source String
+  payload Json
+  createdAt DateTime @default(now())
+  lineage TodayPlanLineage @relation(fields: [lineageId], references: [lineageId])
+  @@unique([lineageId, immutableEventId])
+  @@index([lineageId, effectiveAt, operationRank, immutableEventId])
+  @@map("today_plan_event_ledger")
+}
+
+model TodayPlanHistory {
+  historyId String @id @default(uuid()) @db.Uuid
+  lineageId String @db.Uuid
+  generationId String
+  planVersion Int
+  intent Json
+  watermark Json?
+  createdAt DateTime @default(now())
+  lineage TodayPlanLineage @relation(fields: [lineageId], references: [lineageId])
+  @@unique([lineageId, generationId])
+  @@map("today_plan_history")
+}
+
+model TodayPlanProvenance {
+  provenanceId String @id @default(uuid()) @db.Uuid
+  planVersionId String @db.Uuid
+  engineId String
+  algorithmId String
+  configId String
+  processingVersion String
+  contractVersion String
+  refs Json
+  createdAt DateTime @default(now())
+  plan TodayPlanVersion @relation(fields: [planVersionId], references: [planVersionId])
+  @@map("today_plan_provenance")
+}
+
+model TutorObservation {
+  observationId   String   @id @default(uuid()) @db.Uuid
+  learnerId       String   @db.Uuid
+  tutorActorId    String   @db.Uuid
+  observationCode String
+  targetType      String
+  targetId        String
+  correlationId   String
+  academicContext Json
+  freeText        String?
+  occurredAt      DateTime
+  createdAt       DateTime @default(now())
+  idempotencyKey  String   @unique
+
+  @@index([learnerId, createdAt])
+  @@map("tutor_observations")
+}
+
+model ConsentRecord {
+  consentId     String       @id @default(uuid()) @db.Uuid
+  userId        String       @db.Uuid
+  consentType   String
+  state         ConsentState
+  policyVersion String
+  recordedAt    DateTime     @default(now())
+  revokedAt     DateTime?
+  createdAt     DateTime     @default(now())
+  user          User         @relation(fields: [userId], references: [userId], onDelete: Cascade)
+
+  @@index([userId, consentType, recordedAt])
+  @@map("consent_records")
+}
+
+model UserRole {
+  userRoleId      String               @id @default(uuid()) @db.Uuid
+  userId          String               @db.Uuid
+  role            UserRoleName
+  scope           Json?
+  status          RoleAssignmentStatus @default(ACTIVE)
+  grantedByUserId String?              @db.Uuid
+  auditReference  String?
+  grantedAt       DateTime             @default(now())
+  expiresAt       DateTime?
+  revokedAt       DateTime?
+  user            User                 @relation("UserRoles", fields: [userId], references: [userId], onDelete: Cascade)
+  grantedBy       User?                @relation("RoleGrantors", fields: [grantedByUserId], references: [userId], onDelete: SetNull)
+
+  @@index([userId, status])
+  @@index([role, status])
+  @@map("user_roles")
+}
+
+model Session {
+  sessionId     String    @id @default(uuid()) @db.Uuid
+  userId        String    @db.Uuid
+  tokenHash     String    @unique
+  createdAt     DateTime  @default(now())
+  expiresAt     DateTime
+  lastSeenAt    DateTime?
+  revokedAt     DateTime?
+  rotatedFromId String?   @db.Uuid
+  user          User      @relation(fields: [userId], references: [userId], onDelete: Cascade)
+  rotatedFrom   Session?  @relation("SessionRotation", fields: [rotatedFromId], references: [sessionId], onDelete: SetNull)
+  rotatedTo     Session[] @relation("SessionRotation")
+
+  @@index([userId, revokedAt, expiresAt])
+  @@index([expiresAt])
+  @@map("sessions")
+}
+
+enum AcademicRelationshipType {
+  PREREQUISITE_OF
+  PART_OF
+  RELATED_TO
+}
+
+enum SyllabusVersionStatus {
+  ACTIVE
+}
+
+model AcademicExam {
+  canonicalId      String            @id
+  name             String
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+  subjects         AcademicSubject[]
+  syllabusVersions SyllabusVersion[]
+  questions        Question[]
+
+  @@map("academic_exams")
+}
+
+model AcademicSubject {
+  canonicalId      String            @id
+  name             String
+  examId           String
+  exam             AcademicExam      @relation(fields: [examId], references: [canonicalId], onDelete: Restrict)
+  domains          AcademicDomain[]
+  syllabusVersions SyllabusVersion[]
+  questions        Question[]
+
+  @@unique([examId, canonicalId])
+  @@index([examId])
+  @@map("academic_subjects")
+}
+
+model AcademicDomain {
+  canonicalId String          @id
+  name        String
+  subjectId   String
+  subject     AcademicSubject @relation(fields: [subjectId], references: [canonicalId], onDelete: Restrict)
+  units       AcademicUnit[]
+
+  @@index([subjectId])
+  @@map("academic_domains")
+}
+
+model AcademicUnit {
+  canonicalId String            @id
+  name        String
+  domainId    String
+  domain      AcademicDomain    @relation(fields: [domainId], references: [canonicalId], onDelete: Restrict)
+  chapters    AcademicChapter[]
+
+  @@index([domainId])
+  @@map("academic_units")
+}
+
+model AcademicChapter {
+  canonicalId   String            @id
+  name          String
+  unitId        String
+  unit          AcademicUnit      @relation(fields: [unitId], references: [canonicalId], onDelete: Restrict)
+  syllabusNodes SyllabusNode[]
+  concepts      AcademicConcept[]
+
+  @@index([unitId])
+  @@map("academic_chapters")
+}
+
+model SyllabusNode {
+  canonicalId        String                   @id
+  name               String
+  chapterId          String
+  order              Int
+  chapter            AcademicChapter          @relation(fields: [chapterId], references: [canonicalId], onDelete: Restrict)
+  concepts           SyllabusConceptMapping[]
+  versionMemberships SyllabusVersionNode[]
+  questionVersions   QuestionVersion[]
+
+  @@unique([chapterId, order])
+  @@unique([chapterId, canonicalId])
+  @@index([chapterId])
+  @@map("syllabus_nodes")
+}
+
+model AcademicConcept {
+  canonicalId       String                    @id
+  name              String
+  chapterId         String
+  chapter           AcademicChapter           @relation(fields: [chapterId], references: [canonicalId], onDelete: Restrict)
+  outgoing          ConceptRelationship[]     @relation("ConceptRelationshipSource")
+  incoming          ConceptRelationship[]     @relation("ConceptRelationshipTarget")
+  syllabusMappings  SyllabusConceptMapping[]
+  objectiveMappings ObjectiveConceptMapping[]
+  versionMappings   SyllabusVersionConcept[]
+  questionMappings  QuestionConceptMap[]
+
+  @@index([chapterId])
+  @@map("academic_concepts")
+}
+
+model ConceptRelationship {
+  sourceId  String
+  targetId  String
+  versionId String
+  type      AcademicRelationshipType
+  version   SyllabusVersion          @relation(fields: [versionId], references: [canonicalId], onDelete: Restrict)
+  source    AcademicConcept          @relation("ConceptRelationshipSource", fields: [sourceId], references: [canonicalId], onDelete: Restrict)
+  target    AcademicConcept          @relation("ConceptRelationshipTarget", fields: [targetId], references: [canonicalId], onDelete: Restrict)
+
+  @@id([versionId, sourceId, type, targetId])
+  @@index([versionId, targetId])
+  @@map("concept_relationships")
+}
+
+model SyllabusVersion {
+  canonicalId         String                    @id
+  humanVersion        String
+  status              SyllabusVersionStatus
+  current             Boolean                   @default(false)
+  effectiveYear       Int
+  examId              String
+  subjectId           String
+  exam                AcademicExam              @relation(fields: [examId], references: [canonicalId], onDelete: Restrict)
+  subject             AcademicSubject           @relation(fields: [subjectId], references: [canonicalId], onDelete: Restrict)
+  syllabusNodes       SyllabusVersionNode[]
+  conceptMappings     SyllabusVersionConcept[]
+  syllabusMappings    SyllabusConceptMapping[]
+  objectiveMappings   ObjectiveConceptMapping[]
+  relationships       ConceptRelationship[]
+  questionExposures   QuestionExposure[]
+  assessmentTemplates AssessmentTemplate[]
+  assessmentSessions  AssessmentSession[]
+  diagnosticRuns      DiagnosticRun[]
+  practiceSessions    PracticeSession[]
+  tests               TestDefinition[]
+
+  @@unique([examId, subjectId, current])
+  @@index([examId, subjectId, status, current])
+  @@map("syllabus_versions")
+}
+
+model SyllabusVersionNode {
+  versionId      String
+  syllabusNodeId String
+  version        SyllabusVersion @relation(fields: [versionId], references: [canonicalId], onDelete: Cascade)
+  syllabusNode   SyllabusNode    @relation(fields: [syllabusNodeId], references: [canonicalId], onDelete: Restrict)
+
+  @@id([versionId, syllabusNodeId])
+  @@index([syllabusNodeId])
+  @@map("syllabus_version_nodes")
+}
+
+model SyllabusVersionConcept {
+  versionId String
+  conceptId String
+  version   SyllabusVersion @relation(fields: [versionId], references: [canonicalId], onDelete: Cascade)
+  concept   AcademicConcept @relation(fields: [conceptId], references: [canonicalId], onDelete: Restrict)
+
+  @@id([versionId, conceptId])
+  @@map("syllabus_version_concepts")
+}
+
+model LearningObjective {
+  canonicalId      String                    @id
+  description      String
+  concepts         ObjectiveConceptMapping[]
+  questionVersions QuestionVersion[]
+
+  @@map("learning_objectives")
+}
+
+model SyllabusConceptMapping {
+  versionId      String
+  syllabusNodeId String
+  conceptId      String
+  version        SyllabusVersion @relation(fields: [versionId], references: [canonicalId], onDelete: Cascade)
+  syllabusNode   SyllabusNode    @relation(fields: [syllabusNodeId], references: [canonicalId], onDelete: Restrict)
+  concept        AcademicConcept @relation(fields: [conceptId], references: [canonicalId], onDelete: Restrict)
+
+  @@id([versionId, syllabusNodeId, conceptId])
+  @@index([syllabusNodeId, conceptId])
+  @@map("syllabus_concept_mappings")
+}
+
+model ObjectiveConceptMapping {
+  versionId   String
+  objectiveId String
+  conceptId   String
+  version     SyllabusVersion   @relation(fields: [versionId], references: [canonicalId], onDelete: Cascade)
+  objective   LearningObjective @relation(fields: [objectiveId], references: [canonicalId], onDelete: Restrict)
+  concept     AcademicConcept   @relation(fields: [conceptId], references: [canonicalId], onDelete: Restrict)
+
+  @@id([versionId, objectiveId, conceptId])
+  @@index([objectiveId, conceptId])
+  @@map("objective_concept_mappings")
+}

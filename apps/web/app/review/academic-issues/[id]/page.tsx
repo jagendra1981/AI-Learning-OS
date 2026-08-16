@@ -73,4 +73,3 @@ function AcademicIssueReviewContent() {
 export default function AcademicIssueReviewPage() {
   return <ProtectedGate ready><AcademicIssueReviewContent /></ProtectedGate>;
 }
-

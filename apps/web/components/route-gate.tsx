@@ -126,4 +126,3 @@ export function OnboardingGate({ children }: { children: React.ReactNode }) {
   if (state !== 'ONBOARDING_REQUIRED') return null;
   return <>{children}</>;
 }
-

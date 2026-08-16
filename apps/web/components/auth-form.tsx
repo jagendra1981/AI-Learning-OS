@@ -82,4 +82,3 @@ export function AuthForm({ mode }: { mode: 'login' | 'register' }) {
     </form>
   );
 }
-

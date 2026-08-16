@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import Image from 'next/image';
 import { PublicGate } from '../components/route-gate';
 
 export default function HomePage() {
@@ -26,6 +27,7 @@ export default function HomePage() {
             <div className="trust-line"><span>✦</span> Adaptive practice <span>✦</span> AI tutor <span>✦</span> Progress you can feel</div>
           </div>
           <div className="hero-visual" aria-label="Learning progress preview">
+          <div className="hero-art" aria-hidden="true"><Image src="/learning-hero.png" alt="" width={716} height={716} priority /></div>
           <div className="orbit orbit-one" /><div className="orbit orbit-two" />
             <div className="focus-card"><div className="card-top"><span className="mini-label">TODAY&apos;S FOCUS</span><span className="card-menu">•••</span></div><strong>Algebraic thinking</strong><p className="card-caption">Build the skill behind the answer.</p><div className="mini-progress"><span /></div><div className="card-bottom"><small>72% mastery</small><small>12 min</small></div></div>
             <div className="float-card"><span className="spark">✦</span><div><strong>Small steps, big gains.</strong><small>Consistency beats cramming.</small></div></div>
@@ -45,4 +47,3 @@ export default function HomePage() {
     </PublicGate>
   );
 }
-
