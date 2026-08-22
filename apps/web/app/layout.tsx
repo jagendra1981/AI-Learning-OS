@@ -15,4 +15,5 @@ export default function RootLayout({
   );
 }
 import './globals.css';
+import './global-search.css';
 import { SessionProvider } from '../lib/session';
